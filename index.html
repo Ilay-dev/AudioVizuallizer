@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <link rel="icon" type="image/png" href="ico.png">
+    <link rel="icon" type="image/png" href="ico.png?v=1">
     <title>AudioVisualizer</title>
     <style>
         body {
@@ -54,7 +54,9 @@
         let audioCtx, analyser, dataArray;
         let history = [];
         const historyLimit = 15; 
+        
         let isPaused = false;
+        let pauseTransition = 1.0; // 1.0 = normal, 0.0 = komplett zurückgezogen
         
         let allTimeMaxAmp = 100; 
         let dynamicEndBin = 1024;
@@ -72,9 +74,7 @@
                 if (!document.fullscreenElement) {
                     document.documentElement.requestFullscreen();
                 } else {
-                    if (document.exitFullscreen) {
-                        document.exitFullscreen();
-                    }
+                    if (document.exitFullscreen) document.exitFullscreen();
                 }
             }
             if (e.code === 'Space') {
@@ -112,11 +112,8 @@
             let currentFrameMax = 0;
             for(let i = 0; i < data.length; i++) if(data[i] > currentFrameMax) currentFrameMax = data[i];
             
-            if (currentFrameMax > allTimeMaxAmp) {
-                allTimeMaxAmp = currentFrameMax;
-            } else {
-                allTimeMaxAmp *= 0.9999;
-            }
+            if (currentFrameMax > allTimeMaxAmp) allTimeMaxAmp = currentFrameMax;
+            else allTimeMaxAmp *= 0.9999;
 
             const gainFactor = (canvas.height * 0.35) / (allTimeMaxAmp || 1);
 
@@ -133,9 +130,12 @@
             const centerY = canvas.height / 2;
             let x = 0;
 
+            // Der entscheidende Teil: depthOffset wird durch pauseTransition beeinflusst
+            const adjustedDepth = depthOffset * pauseTransition;
+
             for (let i = startBin; i < startBin + activeRange; i++) {
                 const magnitude = data[i] * gainFactor * scale;
-                const drawX = x + (depthOffset * (canvas.width/2 - x) * 0.04);
+                const drawX = x + (adjustedDepth * (canvas.width/2 - x) * 0.04);
                 
                 if (i === startBin) ctx.moveTo(drawX, centerY - magnitude);
                 else ctx.lineTo(drawX, centerY - magnitude);
@@ -147,7 +147,7 @@
             x = 0;
             for (let i = startBin; i < startBin + activeRange; i++) {
                 const magnitude = data[i] * gainFactor * scale;
-                const drawX = x + (depthOffset * (canvas.width/2 - x) * 0.04);
+                const drawX = x + (adjustedDepth * (canvas.width/2 - x) * 0.04);
                 if (i === startBin) ctx.moveTo(drawX, centerY + magnitude);
                 else ctx.lineTo(drawX, centerY + magnitude);
                 x += sliceWidth;
@@ -158,26 +158,38 @@
         function animate() {
             requestAnimationFrame(animate);
             
-            if (isPaused) return;
-
-            analyser.getByteFrequencyData(dataArray);
-
-            const currentData = new Uint8Array(dataArray);
-            history.push(currentData);
-            if (history.length > historyLimit) history.shift();
-
-            ctx.fillStyle = 'black';
-            ctx.fillRect(0, 0, canvas.width, canvas.height);
-
-            for (let i = 0; i < history.length; i++) {
-                const progress = (i / historyLimit);
-                const alpha = progress * 0.25;
-                const scale = 0.5 + (progress * 0.5);
-                const depthOffset = (historyLimit - i);
-                drawPath(history[i], alpha, scale, depthOffset, false);
+            // Animation der Pause-Transition (1.5 Sekunden bei ca. 60fps = 0.011 Abnahme pro Frame)
+            if (isPaused && pauseTransition > 0) {
+                pauseTransition -= 0.011; 
+                if (pauseTransition < 0) pauseTransition = 0;
+            } else if (!isPaused && pauseTransition < 1) {
+                pauseTransition += 0.02; // Schnelleres "Ausfahren" beim Weitermachen
+                if (pauseTransition > 1) pauseTransition = 1;
             }
 
-            drawPath(dataArray, 1.0, 1.0, 0, true);
+            // Wenn pausiert UND die Trails eingefahren sind, stoppen wir das Update der Audio-Daten
+            if (!isPaused || pauseTransition > 0) {
+                if (!isPaused) {
+                    analyser.getByteFrequencyData(dataArray);
+                    const currentData = new Uint8Array(dataArray);
+                    history.push(currentData);
+                    if (history.length > historyLimit) history.shift();
+                }
+
+                ctx.fillStyle = 'black';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+                for (let i = 0; i < history.length; i++) {
+                    const progress = (i / historyLimit);
+                    // Auch Alpha und Scale werden bei Pause leicht angepasst für den Effekt
+                    const alpha = progress * 0.25 * pauseTransition;
+                    const scale = (0.5 + (progress * 0.5)) * (0.8 + (pauseTransition * 0.2));
+                    const depthOffset = (historyLimit - i);
+                    drawPath(history[i], alpha, scale, depthOffset, false);
+                }
+
+                drawPath(dataArray, 1.0, 1.0, 0, true);
+            }
         }
     </script>
 </body>
