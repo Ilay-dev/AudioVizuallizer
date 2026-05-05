@@ -32,14 +32,17 @@
             margin: 0 auto 20px auto;
         }
         button:hover { background: #fff; color: #000; box-shadow: 0 0 20px #fff; }
-        span { opacity: 0.6; font-size: 0.9rem; letter-spacing: 1px; }
+        .controls-hint { opacity: 0.6; font-size: 0.9rem; letter-spacing: 1px; line-height: 1.6; }
     </style>
 </head>
 <body>
 
     <div id="ui">
         <button id="startBtn">Start System Audio</button>
-        <span>Press "f" for fullscreen</span>
+        <div class="controls-hint">
+            Press "f" for fullscreen<br>
+            Press "Space" to pause/resume
+        </div>
     </div>
     <canvas id="canvas"></canvas>
 
@@ -51,6 +54,7 @@
         let audioCtx, analyser, dataArray;
         let history = [];
         const historyLimit = 15; 
+        let isPaused = false;
         
         let allTimeMaxAmp = 100; 
         let dynamicEndBin = 1024;
@@ -72,6 +76,9 @@
                         document.exitFullscreen();
                     }
                 }
+            }
+            if (e.code === 'Space') {
+                isPaused = !isPaused;
             }
         });
 
@@ -150,6 +157,9 @@
 
         function animate() {
             requestAnimationFrame(animate);
+            
+            if (isPaused) return;
+
             analyser.getByteFrequencyData(dataArray);
 
             const currentData = new Uint8Array(dataArray);
