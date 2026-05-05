@@ -1,0 +1,168 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Steady Mirror Visualizer</title>
+    <style>
+        body {
+            margin: 0;
+            background-color: #000;
+            color: #fff;
+            font-family: 'Inter', sans-serif;
+            overflow: hidden;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            height: 100vh;
+        }
+        canvas { position: absolute; top: 0; left: 0; }
+        #ui { z-index: 100; }
+        button {
+            padding: 15px 40px;
+            background: #000;
+            color: #fff;
+            border: 1px solid #fff;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            transition: 0.4s;
+        }
+        button:hover { background: #fff; color: #000; box-shadow: 0 0 20px #fff; }
+    </style>
+</head>
+<body>
+
+    <div id="ui"><button id="startBtn">System Audio Starten</button></div>
+    <canvas id="canvas"></canvas>
+
+    <script>
+        const canvas = document.getElementById('canvas');
+        const ctx = canvas.getContext('2d');
+        const startBtn = document.getElementById('startBtn');
+        
+        let audioCtx, analyser, dataArray;
+        let history = [];
+        const historyLimit = 15; // Noch tieferer Echo-Effekt
+        
+        // Globale Maxima für Stabilität
+        let allTimeMaxAmp = 100; 
+        let dynamicEndBin = 1024;
+
+        function initCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+
+        window.addEventListener('resize', initCanvas);
+        initCanvas();
+
+        startBtn.addEventListener('click', async () => {
+            try {
+                const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                const source = audioCtx.createMediaStreamSource(stream);
+                analyser = audioCtx.createAnalyser();
+                analyser.fftSize = 4096;
+                analyser.smoothingTimeConstant = 0.85; // Glättet die Datenbewegung
+                dataArray = new Uint8Array(analyser.frequencyBinCount);
+                source.connect(analyser);
+                document.getElementById('ui').style.display = 'none';
+                animate();
+            } catch (err) { alert("Audio-Freigabe erforderlich!"); }
+        });
+
+        function drawPath(data, alpha, scale, depthOffset, isMain) {
+            // 1. Frequenz-Crop (Nur genutzten Bereich anzeigen)
+            let threshold = 3;
+            let lastActiveBin = 0;
+            for (let i = data.length - 1; i >= 0; i--) {
+                if (data[i] > threshold) { lastActiveBin = i; break; }
+            }
+            // Langsame Anpassung des sichtbaren Bereichs
+            dynamicEndBin = dynamicEndBin * 0.99 + lastActiveBin * 0.01;
+            
+            const startBin = Math.floor(40 * analyser.fftSize / audioCtx.sampleRate);
+            const activeRange = Math.max(dynamicEndBin - startBin, 100);
+            const sliceWidth = canvas.width / activeRange;
+
+            // 2. All-Time Maximum Kalkulation (Verhindert das Bouncen)
+            let currentFrameMax = 0;
+            for(let i = 0; i < data.length; i++) if(data[i] > currentFrameMax) currentFrameMax = data[i];
+            
+            // Wenn der aktuelle Frame lauter ist als alles bisherige, setze neues Maximum
+            if (currentFrameMax > allTimeMaxAmp) {
+                allTimeMaxAmp = currentFrameMax;
+            } else {
+                // Das Maximum sinkt nur sehr, sehr langsam (Recovery)
+                allTimeMaxAmp *= 0.9999;
+            }
+
+            // Nutze allTimeMaxAmp als festen Teiler
+            const gainFactor = (canvas.height * 0.35) / (allTimeMaxAmp || 1);
+
+            ctx.beginPath();
+            ctx.lineWidth = isMain ? 2.5 : 1;
+            ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+            if(isMain) {
+                ctx.shadowBlur = 15;
+                ctx.shadowColor = "white";
+            } else {
+                ctx.shadowBlur = 0;
+            }
+
+            const centerY = canvas.height / 2;
+            let x = 0;
+
+            // Zeichne Pfad
+            for (let i = startBin; i < startBin + activeRange; i++) {
+                const magnitude = data[i] * gainFactor * scale;
+                // Tunnel-Effekt (X-Offset)
+                const drawX = x + (depthOffset * (canvas.width/2 - x) * 0.04);
+                
+                if (i === startBin) ctx.moveTo(drawX, centerY - magnitude);
+                else ctx.lineTo(drawX, centerY - magnitude);
+                x += sliceWidth;
+            }
+            
+            // Symmetrie: Pfad für die untere Hälfte spiegeln
+            ctx.stroke();
+            
+            ctx.beginPath();
+            x = 0;
+            for (let i = startBin; i < startBin + activeRange; i++) {
+                const magnitude = data[i] * gainFactor * scale;
+                const drawX = x + (depthOffset * (canvas.width/2 - x) * 0.04);
+                if (i === startBin) ctx.moveTo(drawX, centerY + magnitude);
+                else ctx.lineTo(drawX, centerY + magnitude);
+                x += sliceWidth;
+            }
+            ctx.stroke();
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            analyser.getByteFrequencyData(dataArray);
+
+            const currentData = new Uint8Array(dataArray);
+            history.push(currentData);
+            if (history.length > historyLimit) history.shift();
+
+            ctx.fillStyle = 'black';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+            // Echos zeichnen
+            for (let i = 0; i < history.length; i++) {
+                const progress = (i / historyLimit);
+                const alpha = progress * 0.25;
+                const scale = 0.5 + (progress * 0.5);
+                const depthOffset = (historyLimit - i);
+                drawPath(history[i], alpha, scale, depthOffset, false);
+            }
+
+            // Hauptlinie vorne
+            drawPath(dataArray, 1.0, 1.0, 0, true);
+        }
+    </script>
+</body>
+</html>
