@@ -33,9 +33,10 @@
             display: block;
             margin: 0 auto 20px auto;
             -webkit-tap-highlight-color: transparent;
+            min-width: 250px;
         }
         button:hover { background: #fff; color: #000; box-shadow: 0 0 20px #fff; }
-        .controls-hint { opacity: 0.6; font-size: 0.9rem; letter-spacing: 1px; line-height: 1.6; }
+        .controls-hint { opacity: 0.6; font-size: 0.9rem; letter-spacing: 1px; line-height: 1.6; margin-top: 20px; }
 
         #orientation-overlay {
             display: none;
@@ -80,6 +81,12 @@
         @media (orientation: portrait) and (max-width: 1024px) {
             #orientation-overlay { display: flex; }
         }
+
+        .mobile-only { display: none; }
+        @media (max-width: 1024px) {
+            .desktop-only { display: none; }
+            .mobile-only { display: inline; }
+        }
     </style>
 </head>
 <body>
@@ -90,10 +97,13 @@
     </div>
 
     <div id="ui">
-        <button id="startBtn">Start System Audio</button>
+        <div id="button-container">
+            <button id="systemAudioBtn" class="desktop-only">Start System Audio</button>
+            <button id="micBtn">Start Microphone</button>
+        </div>
         <div class="controls-hint">
-            <span style="display: block;" id="desktop-text">Press "f" for fullscreen | Space to pause</span>
-            <span id="mobile-text">Tap screen to toggle pause</span>
+            <span class="desktop-only">Press "f" for fullscreen | Space to pause</span>
+            <span class="mobile-only">Tap screen to toggle pause</span>
         </div>
     </div>
     <canvas id="canvas"></canvas>
@@ -101,7 +111,8 @@
     <script>
         const canvas = document.getElementById('canvas');
         const ctx = canvas.getContext('2d');
-        const startBtn = document.getElementById('startBtn');
+        const systemAudioBtn = document.getElementById('systemAudioBtn');
+        const micBtn = document.getElementById('micBtn');
         
         let audioCtx, analyser, dataArray;
         let history = [];
@@ -139,17 +150,15 @@
             e.preventDefault();
         }, {passive: false});
 
-        startBtn.addEventListener('click', async () => {
+        async function startAudio(mode) {
             try {
                 audioCtx = new (window.AudioContext || window.webkitAudioContext)();
                 
                 let stream;
-                const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
-
-                if (isMobile) {
-                    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
-                } else {
+                if (mode === 'system') {
                     stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+                } else {
+                    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 }
 
                 if (audioCtx.state === 'suspended') {
@@ -168,7 +177,10 @@
             } catch (err) { 
                 alert("Audio access required"); 
             }
-        });
+        }
+
+        systemAudioBtn.addEventListener('click', () => startAudio('system'));
+        micBtn.addEventListener('click', () => startAudio('mic'));
 
         function drawPath(data, alpha, scale, depthOffset, isMain) {
             let threshold = 3;
