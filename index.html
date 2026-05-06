@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <link rel="icon" type="image/png" href="ico.png?v=1">
     <title>AudioVisualizer</title>
     <style>
@@ -16,9 +16,11 @@
             align-items: center;
             justify-content: center;
             height: 100vh;
+            width: 100vw;
+            touch-action: none;
         }
-        canvas { position: absolute; top: 0; left: 0; }
-        #ui { z-index: 100; text-align: center; }
+        canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
+        #ui { z-index: 100; text-align: center; padding: 20px; }
         button {
             padding: 15px 40px;
             background: #000;
@@ -30,18 +32,68 @@
             transition: 0.4s;
             display: block;
             margin: 0 auto 20px auto;
+            -webkit-tap-highlight-color: transparent;
         }
         button:hover { background: #fff; color: #000; box-shadow: 0 0 20px #fff; }
         .controls-hint { opacity: 0.6; font-size: 0.9rem; letter-spacing: 1px; line-height: 1.6; }
+
+        #orientation-overlay {
+            display: none;
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: #000;
+            z-index: 9999;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+        }
+
+        .phone-icon {
+            width: 50px;
+            height: 80px;
+            border: 3px solid #fff;
+            border-radius: 6px;
+            margin-bottom: 20px;
+            position: relative;
+            animation: rotateDevice 2s ease-in-out infinite;
+        }
+
+        .phone-icon::after {
+            content: '';
+            position: absolute;
+            bottom: 5px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 5px;
+            height: 5px;
+            background: #fff;
+            border-radius: 50%;
+        }
+
+        @keyframes rotateDevice {
+            0% { transform: rotate(0deg); }
+            50% { transform: rotate(-90deg); }
+            100% { transform: rotate(-90deg); }
+        }
+
+        @media (orientation: portrait) and (max-width: 1024px) {
+            #orientation-overlay { display: flex; }
+        }
     </style>
 </head>
 <body>
 
+    <div id="orientation-overlay">
+        <div class="phone-icon"></div>
+        <p>Please rotate your device to landscape</p>
+    </div>
+
     <div id="ui">
         <button id="startBtn">Start System Audio</button>
         <div class="controls-hint">
-            Press "f" for fullscreen<br>
-            Press "Space" to pause/resume
+            <span style="display: block;" id="desktop-text">Press "f" for fullscreen | Space to pause</span>
+            <span id="mobile-text">Tap screen to toggle pause</span>
         </div>
     </div>
     <canvas id="canvas"></canvas>
@@ -56,7 +108,7 @@
         const historyLimit = 15; 
         
         let isPaused = false;
-        let pauseTransition = 1.0; // 1.0 = normal, 0.0 = komplett zurückgezogen
+        let pauseTransition = 1.0; 
         
         let allTimeMaxAmp = 100; 
         let dynamicEndBin = 1024;
@@ -72,7 +124,7 @@
         window.addEventListener('keydown', (e) => {
             if (e.key.toLowerCase() === 'f') {
                 if (!document.fullscreenElement) {
-                    document.documentElement.requestFullscreen();
+                    document.documentElement.requestFullscreen().catch(() => {});
                 } else {
                     if (document.exitFullscreen) document.exitFullscreen();
                 }
@@ -82,19 +134,40 @@
             }
         });
 
+        canvas.addEventListener('touchstart', (e) => {
+            isPaused = !isPaused;
+            e.preventDefault();
+        }, {passive: false});
+
         startBtn.addEventListener('click', async () => {
             try {
-                const stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
                 audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+                
+                let stream;
+                const isMobile = /iPhone|iPad|iPod|Android/i.test(navigator.userAgent);
+
+                if (isMobile) {
+                    stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                } else {
+                    stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+                }
+
+                if (audioCtx.state === 'suspended') {
+                    await audioCtx.resume();
+                }
+
                 const source = audioCtx.createMediaStreamSource(stream);
                 analyser = audioCtx.createAnalyser();
                 analyser.fftSize = 4096;
                 analyser.smoothingTimeConstant = 0.85; 
                 dataArray = new Uint8Array(analyser.frequencyBinCount);
                 source.connect(analyser);
+                
                 document.getElementById('ui').style.display = 'none';
                 animate();
-            } catch (err) { alert("Audio-Access Required"); }
+            } catch (err) { 
+                alert("Audio access required"); 
+            }
         });
 
         function drawPath(data, alpha, scale, depthOffset, isMain) {
@@ -105,7 +178,7 @@
             }
             dynamicEndBin = dynamicEndBin * 0.99 + lastActiveBin * 0.01;
             
-            const startBin = Math.floor(40 * analyser.fftSize / audioCtx.sampleRate);
+            const startBin = Math.floor(40 * (analyser ? analyser.fftSize : 4096) / (audioCtx ? audioCtx.sampleRate : 44100));
             const activeRange = Math.max(dynamicEndBin - startBin, 100);
             const sliceWidth = canvas.width / activeRange;
 
@@ -120,6 +193,7 @@
             ctx.beginPath();
             ctx.lineWidth = isMain ? 2.5 : 1;
             ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+            
             if(isMain) {
                 ctx.shadowBlur = 15;
                 ctx.shadowColor = "white";
@@ -129,14 +203,11 @@
 
             const centerY = canvas.height / 2;
             let x = 0;
-
-            // Der entscheidende Teil: depthOffset wird durch pauseTransition beeinflusst
             const adjustedDepth = depthOffset * pauseTransition;
 
             for (let i = startBin; i < startBin + activeRange; i++) {
                 const magnitude = data[i] * gainFactor * scale;
                 const drawX = x + (adjustedDepth * (canvas.width/2 - x) * 0.04);
-                
                 if (i === startBin) ctx.moveTo(drawX, centerY - magnitude);
                 else ctx.lineTo(drawX, centerY - magnitude);
                 x += sliceWidth;
@@ -158,16 +229,14 @@
         function animate() {
             requestAnimationFrame(animate);
             
-            // Animation der Pause-Transition (1.5 Sekunden bei ca. 60fps = 0.011 Abnahme pro Frame)
             if (isPaused && pauseTransition > 0) {
                 pauseTransition -= 0.011; 
                 if (pauseTransition < 0) pauseTransition = 0;
             } else if (!isPaused && pauseTransition < 1) {
-                pauseTransition += 0.02; // Schnelleres "Ausfahren" beim Weitermachen
+                pauseTransition += 0.02; 
                 if (pauseTransition > 1) pauseTransition = 1;
             }
 
-            // Wenn pausiert UND die Trails eingefahren sind, stoppen wir das Update der Audio-Daten
             if (!isPaused || pauseTransition > 0) {
                 if (!isPaused) {
                     analyser.getByteFrequencyData(dataArray);
@@ -177,11 +246,11 @@
                 }
 
                 ctx.fillStyle = 'black';
+                ctx.shadowBlur = 0;
                 ctx.fillRect(0, 0, canvas.width, canvas.height);
 
                 for (let i = 0; i < history.length; i++) {
                     const progress = (i / historyLimit);
-                    // Auch Alpha und Scale werden bei Pause leicht angepasst für den Effekt
                     const alpha = progress * 0.25 * pauseTransition;
                     const scale = (0.5 + (progress * 0.5)) * (0.8 + (pauseTransition * 0.2));
                     const depthOffset = (historyLimit - i);
