@@ -20,7 +20,15 @@
             touch-action: none;
         }
         canvas { position: absolute; top: 0; left: 0; width: 100%; height: 100%; }
-        #ui { z-index: 100; text-align: center; padding: 20px; }
+        #ui { z-index: 100; text-align: center; padding: 20px; transition: opacity 0.3s; }
+        
+        #button-container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            align-items: center;
+        }
+        
         button {
             padding: 15px 40px;
             background: #000;
@@ -31,11 +39,13 @@
             letter-spacing: 3px;
             transition: 0.4s;
             display: block;
-            margin: 0 auto 20px auto;
+            margin: 0;
             -webkit-tap-highlight-color: transparent;
+            border-radius: 4px;
             min-width: 250px;
         }
         button:hover { background: #fff; color: #000; box-shadow: 0 0 20px #fff; }
+        
         .controls-hint { opacity: 0.6; font-size: 0.9rem; letter-spacing: 1px; line-height: 1.6; margin-top: 20px; }
 
         #orientation-overlay {
@@ -78,15 +88,143 @@
             100% { transform: rotate(-90deg); }
         }
 
+        .mobile-only { display: none; }
+        @media (max-width: 1024px) {
+            .desktop-only { display: none !important; }
+            span.mobile-only { display: inline !important; }
+            button.mobile-only { display: block !important; }
+            #orientation-overlay { display: flex; }
+        }
         @media (orientation: portrait) and (max-width: 1024px) {
             #orientation-overlay { display: flex; }
         }
-
-        .mobile-only { display: none; }
-        @media (max-width: 1024px) {
-            .desktop-only { display: none; }
-            .mobile-only { display: inline; }
+        @media (orientation: landscape) {
+            #orientation-overlay { display: none !important; }
         }
+
+        #burger-menu {
+            display: none;
+            position: fixed;
+            top: 30px;
+            right: 30px;
+            width: 30px;
+            height: 22px;
+            flex-direction: column;
+            justify-content: space-between;
+            cursor: pointer;
+            z-index: 200;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+
+        #burger-menu div {
+            width: 100%;
+            height: 3px;
+            background-color: #fff;
+            border-radius: 2px;
+            transition: 0.3s;
+        }
+
+        #burger-menu.open div:nth-child(1) { transform: translateY(9.5px) rotate(45deg); }
+        #burger-menu.open div:nth-child(2) { opacity: 0; }
+        #burger-menu.open div:nth-child(3) { transform: translateY(-9.5px) rotate(-45deg); }
+
+        #settings-panel {
+            display: none;
+            position: fixed;
+            top: 80px;
+            right: 30px;
+            background: rgba(15, 15, 15, 0.85);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            padding: 25px;
+            width: 260px;
+            max-height: calc(100vh - 120px);
+            overflow-y: auto;
+            z-index: 200;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.8);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            opacity: 0;
+            transform: translateY(-10px);
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        @media (max-width: 600px) {
+            #settings-panel {
+                top: 70px;
+                right: 5vw;
+                width: 90vw;
+                max-width: 350px;
+                padding: 20px;
+            }
+        }
+
+        #settings-panel::-webkit-scrollbar { width: 6px; }
+        #settings-panel::-webkit-scrollbar-track { background: rgba(0,0,0,0.2); border-radius: 3px; }
+        #settings-panel::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.3); border-radius: 3px; }
+
+        #settings-panel.visible {
+            display: block;
+            opacity: 1;
+            transform: translateY(0);
+        }
+
+        #settings-panel h3 { margin: 0 0 20px 0; font-weight: 600; font-size: 1.1rem; letter-spacing: 1px; text-transform: uppercase; }
+        
+        .setting-group { margin-bottom: 20px; }
+        
+        .label-row { display: flex; justify-content: space-between; align-items: center; margin-bottom: 8px; }
+        .label-row label { font-size: 0.75rem; color: #aaa; text-transform: uppercase; letter-spacing: 1px; margin: 0; }
+        .val-display { font-size: 0.75rem; color: #fff; background: rgba(255,255,255,0.15); padding: 2px 6px; border-radius: 4px; font-weight: bold; }
+        
+        select, input[type="color"] {
+            width: 100%;
+            background: #222;
+            color: #fff;
+            border: 1px solid #444;
+            padding: 10px;
+            border-radius: 6px;
+            font-family: inherit;
+            font-size: 0.9rem;
+            outline: none;
+            transition: border-color 0.2s;
+            box-sizing: border-box;
+            appearance: none;
+        }
+        
+        select:focus { border-color: #fff; }
+        
+        input[type="color"] { 
+            padding: 2px; 
+            height: 40px; 
+            cursor: pointer; 
+        }
+        
+        input[type="color"]::-webkit-color-swatch-wrapper { padding: 2px; }
+        input[type="color"]::-webkit-color-swatch { border-radius: 4px; border: none; }
+
+        input[type="range"] {
+            width: 100%;
+            margin-top: 5px;
+            appearance: none;
+            background: #444;
+            height: 4px;
+            border-radius: 2px;
+            outline: none;
+        }
+        input[type="range"]::-webkit-slider-thumb {
+            appearance: none;
+            width: 16px;
+            height: 16px;
+            border-radius: 50%;
+            background: #fff;
+            cursor: pointer;
+            transition: transform 0.1s;
+        }
+        input[type="range"]::-webkit-slider-thumb:hover { transform: scale(1.2); }
+        
+        #custom-controls { display: none; margin-top: 15px; border-top: 1px solid rgba(255,255,255,0.1); padding-top: 15px; }
     </style>
 </head>
 <body>
@@ -106,6 +244,68 @@
             <span class="mobile-only">Tap screen to toggle pause</span>
         </div>
     </div>
+
+    <div id="burger-menu">
+        <div></div>
+        <div></div>
+        <div></div>
+    </div>
+
+    <div id="settings-panel">
+        <h3>Settings</h3>
+        
+        <div class="setting-group">
+            <div class="label-row"><label>Preset</label></div>
+            <select id="preset-select">
+                <option value="classic">Classic</option>
+                <option value="neon">Neon Pulse</option>
+                <option value="ocean">Ocean Waves</option>
+                <option value="custom">Custom</option>
+            </select>
+        </div>
+
+        <div id="custom-controls">
+            <div class="setting-group">
+                <div class="label-row"><label>Line Color</label></div>
+                <input type="color" id="custom-color" value="#ffffff">
+            </div>
+            <div class="setting-group">
+                <div class="label-row"><label>Background Color</label></div>
+                <input type="color" id="custom-bg-color" value="#000000">
+            </div>
+            <div class="setting-group">
+                <div class="label-row">
+                    <label>Thickness / Size</label>
+                    <span id="val-thickness" class="val-display">2.5</span>
+                </div>
+                <input type="range" id="custom-line-width" min="0.5" max="8" step="0.5" value="2.5">
+            </div>
+            <div class="setting-group">
+                <div class="label-row">
+                    <label>Trail Amount (Delay)</label>
+                    <span id="val-trail" class="val-display">15</span>
+                </div>
+                <input type="range" id="custom-history" min="0" max="50" step="1" value="15">
+            </div>
+            <div class="setting-group">
+                <div class="label-row"><label>Shape</label></div>
+                <select id="custom-shape">
+                    <option value="line-mirrored">Line (Mirrored)</option>
+                    <option value="line-single">Line (Single)</option>
+                    <option value="bars">Bars</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="setting-group">
+            <div class="label-row"><label>Frequency Scale</label></div>
+            <select id="freq-scale">
+                <option value="dynamic">Dynamic Tracking</option>
+                <option value="fixed">Fixed (80Hz - 24kHz)</option>
+            </select>
+        </div>
+    </div>
+
     <canvas id="canvas"></canvas>
 
     <script>
@@ -113,16 +313,138 @@
         const ctx = canvas.getContext('2d');
         const systemAudioBtn = document.getElementById('systemAudioBtn');
         const micBtn = document.getElementById('micBtn');
+        const burgerMenu = document.getElementById('burger-menu');
+        const settingsPanel = document.getElementById('settings-panel');
+        const presetSelect = document.getElementById('preset-select');
+        const customControls = document.getElementById('custom-controls');
+        const customColor = document.getElementById('custom-color');
+        const customBgColor = document.getElementById('custom-bg-color');
+        const customLineWidth = document.getElementById('custom-line-width');
+        const customHistory = document.getElementById('custom-history');
+        const customShape = document.getElementById('custom-shape');
+        const freqScale = document.getElementById('freq-scale');
         
         let audioCtx, analyser, dataArray;
+        
+        // Memory Pool to prevent Garbarge Collection stutters
         let history = [];
-        const historyLimit = 15; 
+        let bufferPool =[]; 
+        let historyLimit = 15; 
         
         let isPaused = false;
-        let pauseTransition = 1.0; 
-        
         let allTimeMaxAmp = 100; 
         let dynamicEndBin = 1024;
+        let isInitialized = false;
+
+        let config = {
+            color: { r: 255, g: 255, b: 255 },
+            bgColor: { r: 0, g: 0, b: 0 },
+            shape: 'line-mirrored',
+            freqScale: 'dynamic',
+            lineWidth: 2.5,
+            historyLimit: 15
+        };
+
+        const presets = {
+            classic: { color: '#ffffff', bgColor: '#000000', shape: 'line-mirrored', freqScale: 'dynamic', lineWidth: 2.5, historyLimit: 15 },
+            neon: { color: '#ff00ff', bgColor: '#0a001a', shape: 'bars', freqScale: 'fixed', lineWidth: 4, historyLimit: 15 },
+            ocean: { color: '#00ccff', bgColor: '#000a14', shape: 'line-single', freqScale: 'dynamic', lineWidth: 2, historyLimit: 15 }
+        };
+
+        function hexToRgb(hex) {
+            const result = /^#?([a-f\d]{2})([a-f\d]{2})([a-f\d]{2})$/i.exec(hex);
+            return result ? { r: parseInt(result[1], 16), g: parseInt(result[2], 16), b: parseInt(result[3], 16) } : { r: 255, g: 255, b: 255 };
+        }
+
+        function updateConfig() {
+            const preset = presetSelect.value;
+            
+            if (preset === 'custom') {
+                customControls.style.display = 'block';
+                config.color = hexToRgb(customColor.value);
+                config.bgColor = hexToRgb(customBgColor.value);
+                config.shape = customShape.value;
+                config.lineWidth = parseFloat(customLineWidth.value);
+                config.historyLimit = parseInt(customHistory.value);
+            } else {
+                customControls.style.display = 'none';
+                config.color = hexToRgb(presets[preset].color);
+                config.bgColor = hexToRgb(presets[preset].bgColor);
+                config.shape = presets[preset].shape;
+                config.lineWidth = presets[preset].lineWidth;
+                config.historyLimit = presets[preset].historyLimit;
+                freqScale.value = presets[preset].freqScale;
+                
+                customColor.value = presets[preset].color;
+                customBgColor.value = presets[preset].bgColor;
+                customShape.value = presets[preset].shape;
+                customLineWidth.value = presets[preset].lineWidth;
+                customHistory.value = presets[preset].historyLimit;
+            }
+            
+            config.freqScale = freqScale.value;
+            historyLimit = config.historyLimit;
+            
+            // Instantly update text indicators
+            document.getElementById('val-thickness').textContent = customLineWidth.value;
+            document.getElementById('val-trail').textContent = customHistory.value;
+
+            // Instantly trim memory so the preview updates properly if lowered
+            while (history.length > config.historyLimit) {
+                bufferPool.push(history.shift());
+            }
+        }
+
+        presetSelect.addEventListener('change', updateConfig);
+        customColor.addEventListener('input', updateConfig);
+        customBgColor.addEventListener('input', updateConfig);
+        customLineWidth.addEventListener('input', updateConfig);
+        customHistory.addEventListener('input', updateConfig);
+        customShape.addEventListener('change', updateConfig);
+        freqScale.addEventListener('change', updateConfig);
+
+        function toggleMenu() {
+            const isOpen = burgerMenu.classList.contains('open');
+            if (isOpen) {
+                burgerMenu.classList.remove('open');
+                settingsPanel.classList.remove('visible');
+                setTimeout(() => {
+                    if (!burgerMenu.classList.contains('open')) {
+                        settingsPanel.style.display = 'none';
+                    }
+                }, 300);
+            } else {
+                burgerMenu.classList.add('open');
+                settingsPanel.style.display = 'block';
+                setTimeout(() => settingsPanel.classList.add('visible'), 10);
+            }
+        }
+
+        burgerMenu.addEventListener('click', (e) => {
+            e.stopPropagation();
+            toggleMenu();
+        });
+
+        settingsPanel.addEventListener('click', (e) => {
+            e.stopPropagation();
+        });
+
+        function togglePauseState() {
+            if (!audioCtx) return;
+            isPaused = !isPaused;
+            if (isPaused) {
+                burgerMenu.style.display = 'flex';
+                setTimeout(() => burgerMenu.style.opacity = '1', 10);
+            } else {
+                burgerMenu.style.opacity = '0';
+                burgerMenu.classList.remove('open');
+                settingsPanel.classList.remove('visible');
+                setTimeout(() => {
+                    burgerMenu.style.display = 'none';
+                    settingsPanel.style.display = 'none';
+                }, 300);
+            }
+        }
 
         function initCanvas() {
             canvas.width = window.innerWidth;
@@ -141,14 +463,26 @@
                 }
             }
             if (e.code === 'Space') {
-                isPaused = !isPaused;
+                togglePauseState();
             }
         });
 
         canvas.addEventListener('touchstart', (e) => {
-            isPaused = !isPaused;
-            e.preventDefault();
+            if (!isInitialized) return;
+            if(e.target === canvas) {
+                togglePauseState();
+                e.preventDefault();
+            }
         }, {passive: false});
+
+        canvas.addEventListener('click', () => {
+            if (!isInitialized) return;
+            if (isPaused && burgerMenu.classList.contains('open')) {
+                toggleMenu();
+            } else {
+                togglePauseState();
+            }
+        });
 
         async function startAudio(mode) {
             try {
@@ -172,26 +506,43 @@
                 dataArray = new Uint8Array(analyser.frequencyBinCount);
                 source.connect(analyser);
                 
-                document.getElementById('ui').style.display = 'none';
+                document.getElementById('ui').style.opacity = '0';
+                setTimeout(() => document.getElementById('ui').style.display = 'none', 300);
+                
+                isInitialized = true;
+                updateConfig();
                 animate();
             } catch (err) { 
                 alert("Audio access required"); 
             }
         }
 
-        systemAudioBtn.addEventListener('click', () => startAudio('system'));
-        micBtn.addEventListener('click', () => startAudio('mic'));
+        systemAudioBtn.addEventListener('click', (e) => { e.stopPropagation(); startAudio('system'); });
+        micBtn.addEventListener('click', (e) => { e.stopPropagation(); startAudio('mic'); });
 
         function drawPath(data, alpha, scale, depthOffset, isMain) {
-            let threshold = 3;
-            let lastActiveBin = 0;
-            for (let i = data.length - 1; i >= 0; i--) {
-                if (data[i] > threshold) { lastActiveBin = i; break; }
-            }
-            dynamicEndBin = dynamicEndBin * 0.99 + lastActiveBin * 0.01;
+            if (!data || data.length === 0) return;
             
-            const startBin = Math.floor(40 * (analyser ? analyser.fftSize : 4096) / (audioCtx ? audioCtx.sampleRate : 44100));
-            const activeRange = Math.max(dynamicEndBin - startBin, 100);
+            let startBin, activeRange;
+            const sampleRate = audioCtx ? audioCtx.sampleRate : 44100;
+            const fftSize = analyser ? analyser.fftSize : 4096;
+            const binWidth = sampleRate / fftSize;
+
+            if (config.freqScale === 'fixed') {
+                startBin = Math.floor(80 / binWidth);
+                const endBin = Math.min(data.length - 1, Math.floor(24000 / binWidth));
+                activeRange = endBin - startBin;
+            } else {
+                let threshold = 3;
+                let lastActiveBin = 0;
+                for (let i = data.length - 1; i >= 0; i--) {
+                    if (data[i] > threshold) { lastActiveBin = i; break; }
+                }
+                dynamicEndBin = dynamicEndBin * 0.99 + lastActiveBin * 0.01;
+                startBin = Math.floor(40 / binWidth);
+                activeRange = Math.max(dynamicEndBin - startBin, 100);
+            }
+            
             const sliceWidth = canvas.width / activeRange;
 
             let currentFrameMax = 0;
@@ -203,74 +554,134 @@
             const gainFactor = (canvas.height * 0.35) / (allTimeMaxAmp || 1);
 
             ctx.beginPath();
-            ctx.lineWidth = isMain ? 2.5 : 1;
-            ctx.strokeStyle = `rgba(255, 255, 255, ${alpha})`;
+            
+            const r = config.color.r;
+            const g = config.color.g;
+            const b = config.color.b;
+            
+            ctx.strokeStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
+            ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${alpha})`;
             
             if(isMain) {
-                ctx.shadowBlur = 15;
-                ctx.shadowColor = "white";
+                ctx.lineWidth = config.lineWidth;
+                ctx.shadowBlur = config.shape === 'bars' ? 5 : 15;
+                ctx.shadowColor = `rgb(${r}, ${g}, ${b})`;
             } else {
+                ctx.lineWidth = config.lineWidth * 0.5;
                 ctx.shadowBlur = 0;
             }
 
             const centerY = canvas.height / 2;
-            let x = 0;
-            const adjustedDepth = depthOffset * pauseTransition;
-
-            for (let i = startBin; i < startBin + activeRange; i++) {
-                const magnitude = data[i] * gainFactor * scale;
-                const drawX = x + (adjustedDepth * (canvas.width/2 - x) * 0.04);
-                if (i === startBin) ctx.moveTo(drawX, centerY - magnitude);
-                else ctx.lineTo(drawX, centerY - magnitude);
-                x += sliceWidth;
-            }
-            ctx.stroke();
+            const halfWidth = canvas.width / 2;
+            const depthFactor = depthOffset * 0.04;
             
-            ctx.beginPath();
-            x = 0;
-            for (let i = startBin; i < startBin + activeRange; i++) {
-                const magnitude = data[i] * gainFactor * scale;
-                const drawX = x + (adjustedDepth * (canvas.width/2 - x) * 0.04);
-                if (i === startBin) ctx.moveTo(drawX, centerY + magnitude);
-                else ctx.lineTo(drawX, centerY + magnitude);
-                x += sliceWidth;
+            // SMART PATH DECIMATION ALGORITHM 
+            // Greatly improves performance by avoiding over-drawing lines overlapping pixels
+            let targetPoints = isMain ? Math.min(activeRange, canvas.width) : Math.min(activeRange, canvas.width / 3);
+            let step = Math.max(1, Math.floor(activeRange / targetPoints));
+            if (config.shape === 'bars') step = 1; 
+            
+            let actualSliceWidth = sliceWidth * step;
+
+            if (config.shape === 'bars') {
+                const barWidth = Math.max(1, actualSliceWidth - 1);
+                let x = 0;
+                for (let i = startBin; i < startBin + activeRange; i += step) {
+                    const magnitude = data[i] * gainFactor * scale;
+                    if (magnitude > 0) {
+                        const drawX = x + (depthFactor * (halfWidth - x));
+                        ctx.fillRect(drawX, centerY - magnitude, config.lineWidth * (barWidth/2), magnitude * 2);
+                    }
+                    x += actualSliceWidth;
+                }
+            } else {
+                let x = 0;
+                for (let i = startBin; i < startBin + activeRange; i += step) {
+                    let magnitude = data[i];
+                    
+                    // Simple Peak Detection to not lose data spikes when drastically skipping bins
+                    if (isMain && step > 1) {
+                        for (let j = 1; j < step && i + j < data.length; j++) {
+                            if (data[i + j] > magnitude) magnitude = data[i + j];
+                        }
+                    }
+                    
+                    magnitude = magnitude * gainFactor * scale;
+                    const drawX = x + (depthFactor * (halfWidth - x));
+                    
+                    if (i === startBin) ctx.moveTo(drawX, centerY - magnitude);
+                    else ctx.lineTo(drawX, centerY - magnitude);
+                    
+                    x += actualSliceWidth;
+                }
+                ctx.stroke();
+                
+                if (config.shape === 'line-mirrored') {
+                    ctx.beginPath();
+                    let x = 0;
+                    for (let i = startBin; i < startBin + activeRange; i += step) {
+                        let magnitude = data[i];
+                        if (isMain && step > 1) {
+                            for (let j = 1; j < step && i + j < data.length; j++) {
+                                if (data[i + j] > magnitude) magnitude = data[i + j];
+                            }
+                        }
+                        magnitude = magnitude * gainFactor * scale;
+                        const drawX = x + (depthFactor * (halfWidth - x));
+                        
+                        if (i === startBin) ctx.moveTo(drawX, centerY + magnitude);
+                        else ctx.lineTo(drawX, centerY + magnitude);
+                        
+                        x += actualSliceWidth;
+                    }
+                    ctx.stroke();
+                }
             }
-            ctx.stroke();
         }
 
         function animate() {
             requestAnimationFrame(animate);
             
-            if (isPaused && pauseTransition > 0) {
-                pauseTransition -= 0.011; 
-                if (pauseTransition < 0) pauseTransition = 0;
-            } else if (!isPaused && pauseTransition < 1) {
-                pauseTransition += 0.02; 
-                if (pauseTransition > 1) pauseTransition = 1;
+            if (!isPaused && analyser) {
+                analyser.getByteFrequencyData(dataArray);
+                
+                // Using a buffer pool drastically reduces JS Garbage Collector lag
+                let currentData;
+                if (bufferPool.length > 0) {
+                    currentData = bufferPool.pop();
+                    currentData.set(dataArray);
+                } else {
+                    currentData = new Uint8Array(dataArray);
+                }
+                
+                history.push(currentData);
+                
+                while (history.length > historyLimit) {
+                    bufferPool.push(history.shift());
+                }
             }
 
-            if (!isPaused || pauseTransition > 0) {
-                if (!isPaused) {
-                    analyser.getByteFrequencyData(dataArray);
-                    const currentData = new Uint8Array(dataArray);
-                    history.push(currentData);
-                    if (history.length > historyLimit) history.shift();
-                }
+            if (!dataArray) return;
 
-                ctx.fillStyle = 'black';
-                ctx.shadowBlur = 0;
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
+            const bgR = config.bgColor.r;
+            const bgG = config.bgColor.g;
+            const bgB = config.bgColor.b;
+            
+            ctx.fillStyle = `rgb(${bgR}, ${bgG}, ${bgB})`;
+            ctx.shadowBlur = 0;
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-                for (let i = 0; i < history.length; i++) {
-                    const progress = (i / historyLimit);
-                    const alpha = progress * 0.25 * pauseTransition;
-                    const scale = (0.5 + (progress * 0.5)) * (0.8 + (pauseTransition * 0.2));
-                    const depthOffset = (historyLimit - i);
-                    drawPath(history[i], alpha, scale, depthOffset, false);
-                }
+            const limit = historyLimit || 1; 
 
-                drawPath(dataArray, 1.0, 1.0, 0, true);
+            for (let i = 0; i < history.length; i++) {
+                const progress = (i / limit);
+                const alpha = progress * 0.25;
+                const scale = (0.5 + (progress * 0.5));
+                const depthOffset = (limit - i);
+                drawPath(history[i], alpha, scale, depthOffset, false);
             }
+
+            drawPath(dataArray, 1.0, 1.0, 0, true);
         }
     </script>
 </body>
